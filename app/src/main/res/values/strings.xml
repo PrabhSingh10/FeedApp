@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Feeds</string>
+    <string name="like">Like</string>
+    <string name="comment">Comment</string>
+</resources>
