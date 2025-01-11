@@ -1,31 +1,31 @@
 package com.prabh.feeds.ui.activity
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.prabh.feeds.PostModel
 import com.prabh.feeds.adapter.PostRecyclerViewAdapter
 import com.prabh.feeds.databinding.MainActivityLayoutBinding
 import com.prabh.feeds.ui.viewModel.FeedViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @UnstableApi
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: MainActivityLayoutBinding
 
     private val vm by viewModels<FeedViewModel>()
 
     private val adapter by lazy {
-        PostRecyclerViewAdapter(this.cacheDir)
+        PostRecyclerViewAdapter(isLiked = { id, isLiked ->
+            vm.updateLike(id, isLiked)
+        }, addComment = { id, comment ->
+            vm.addComment(id, comment)
+        })
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

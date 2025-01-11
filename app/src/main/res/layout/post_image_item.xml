@@ -4,14 +4,14 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="10dp"
-    android:layout_marginHorizontal="10dp">
+    android:layout_marginVertical="10dp">
 
     <include
         android:id="@+id/user_info_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         layout="@layout/user_info_section"
+        android:layout_marginHorizontal="10dp"
         android:layout_marginBottom="10dp" />
 
     <TextView
@@ -20,13 +20,16 @@
         android:layout_height="wrap_content"
         android:textSize="18sp"
         android:textColor="@color/black"
+        android:layout_marginHorizontal="10dp"
         tools:text="This is the post caption." />
 
     <ImageView
         android:id="@+id/post_image"
+        android:transitionName="image"
         android:layout_width="match_parent"
         android:layout_height="250dp"
         android:layout_marginTop="10dp"
+        android:layout_marginHorizontal="10dp"
         tools:src="@color/black"
         android:scaleType="fitCenter" />
 

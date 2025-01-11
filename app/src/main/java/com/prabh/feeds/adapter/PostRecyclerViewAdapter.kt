@@ -1,9 +1,16 @@
 package com.prabh.feeds.adapter
 
-import android.util.Log
+import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.OptIn
+import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.media3.common.MediaItem
@@ -11,9 +18,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
-import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
@@ -28,32 +32,22 @@ import com.prabh.feeds.databinding.PostImageItemBinding
 import com.prabh.feeds.databinding.PostTextItemBinding
 import com.prabh.feeds.databinding.PostVideoItemBinding
 import com.prabh.feeds.databinding.UserInfoSectionBinding
-import java.io.File
+import com.prabh.feeds.ui.activity.ImageActivity
 
 @UnstableApi
-class PostRecyclerViewAdapter(private val fileDir: File): ListAdapter<PostModel, RecyclerView.ViewHolder>(object : DiffUtil.ItemCallback<PostModel>() {
-    override fun areItemsTheSame(oldItem: PostModel, newItem: PostModel): Boolean {
-        return oldItem == newItem
-    }
+class PostRecyclerViewAdapter(val isLiked: (Int, Boolean) -> Unit, val addComment: (Int, String) -> Unit) :
+    ListAdapter<PostModel, RecyclerView.ViewHolder>(object : DiffUtil.ItemCallback<PostModel>() {
+        override fun areItemsTheSame(oldItem: PostModel, newItem: PostModel): Boolean {
+            return oldItem.id == newItem.id
+        }
 
-    override fun areContentsTheSame(oldItem: PostModel, newItem: PostModel): Boolean {
-        return oldItem == newItem
-    }
+        override fun areContentsTheSame(oldItem: PostModel, newItem: PostModel): Boolean {
+            return oldItem == newItem
+        }
 
-}) {
+    }) {
 
     private var currentPlayer: Player? = null
-
-    private val feedVideoCache: SimpleCache by lazy {
-        getCacheInstance()
-    }
-
-    private fun getCacheInstance(): SimpleCache {
-        val cacheDir = File(fileDir, "video_cache")
-        val maxBytes: Long = 10 * 1024 * 1024
-        val evictCache = LeastRecentlyUsedCacheEvictor(maxBytes)
-        return SimpleCache(cacheDir, evictCache)
-    }
 
     override fun getItemViewType(position: Int): Int {
         return currentList[position].itemType
@@ -64,19 +58,19 @@ class PostRecyclerViewAdapter(private val fileDir: File): ListAdapter<PostModel,
             0 -> {
                 val view =
                     PostTextItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-                CaptionViewHolder(view)
+                CaptionViewHolder(view, isLiked, addComment)
             }
 
             1 -> {
                 val view =
                     PostImageItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-                ImageViewHolder(view)
+                ImageViewHolder(view, isLiked, addComment)
             }
 
             2 -> {
                 val view =
                     PostVideoItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-                VideoViewHolder(view, videoCache = feedVideoCache) {
+                VideoViewHolder(view, isLiked, addComment) {
                     if (currentPlayer == it) {
                         return@VideoViewHolder
                     }
@@ -97,9 +91,11 @@ class PostRecyclerViewAdapter(private val fileDir: File): ListAdapter<PostModel,
             is CaptionViewHolder -> {
                 holder.onBind(currentItem as PostModel.Caption)
             }
+
             is ImageViewHolder -> {
                 holder.onBind(currentItem as PostModel.Image)
             }
+
             is VideoViewHolder -> {
                 holder.onBind(currentItem as PostModel.Video)
             }
@@ -108,29 +104,59 @@ class PostRecyclerViewAdapter(private val fileDir: File): ListAdapter<PostModel,
 
 }
 
-class CaptionViewHolder(private val binding: PostTextItemBinding): RecyclerView.ViewHolder(binding.root) {
+class CaptionViewHolder(
+    private val binding: PostTextItemBinding,
+    private val isLiked: (Int, Boolean) -> Unit,
+    private val addComment: (Int, String) -> Unit
+) : RecyclerView.ViewHolder(binding.root) {
     fun onBind(item: PostModel.Caption) {
         binding.userInfoSection.updateUserInfoSection(item)
-        binding.likeCommentSection.updateLikeCommentSection(item)
+        binding.likeCommentSection.updateLikeCommentSection(item, isLiked, addComment)
         binding.postCaption.text = item.data
+
+        binding.postCaption.setOnLongClickListener {
+            binding.postCaption.copyCaption(userName = item.userName, caption = item.data)
+            true
+        }
     }
 }
 
-class ImageViewHolder(private val binding: PostImageItemBinding): RecyclerView.ViewHolder(binding.root) {
+class ImageViewHolder(
+    private val binding: PostImageItemBinding,
+    private val isLiked: (Int, Boolean) -> Unit,
+    private val addComment: (Int, String) -> Unit
+) : RecyclerView.ViewHolder(binding.root) {
     fun onBind(item: PostModel.Image) {
         binding.userInfoSection.updateUserInfoSection(item)
-        binding.likeCommentSection.updateLikeCommentSection(item)
+        binding.likeCommentSection.updateLikeCommentSection(item, isLiked, addComment)
         binding.postCaption.text = item.caption
         Glide.with(binding.postImage.context)
             .load(item.imageUrl)
             .into(binding.postImage)
+
+        binding.postCaption.setOnLongClickListener {
+            binding.postCaption.copyCaption(userName = item.userName, caption = item.caption)
+            true
+        }
+
+        binding.postImage.setOnClickListener {
+            val intent = Intent(binding.root.context, ImageActivity::class.java)
+            intent.putExtra("imageUrl", item.imageUrl)
+            val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                (binding.root.context as Activity),
+                binding.postImage,
+                "image"
+            )
+            binding.root.context.startActivity(intent, options.toBundle())
+        }
     }
 }
 
 @OptIn(UnstableApi::class)
 class VideoViewHolder(
-    val binding: PostVideoItemBinding,
-    val videoCache: SimpleCache,
+    private val binding: PostVideoItemBinding,
+    private val isLiked: (Int, Boolean) -> Unit,
+    private val addComment: (Int, String) -> Unit,
     val playerInitializer: (Player) -> Unit
 ) : RecyclerView.ViewHolder(binding.root) {
 
@@ -138,7 +164,10 @@ class VideoViewHolder(
 
     fun onBind(item: PostModel.Video) {
         binding.userInfoSection.updateUserInfoSection(item)
-        binding.likeCommentSection.updateLikeCommentSection(item)
+        binding.likeCommentSection.updateLikeCommentSection(item, isLiked, addComment) {
+            player?.stop()
+            player?.release()
+        }
         binding.postCaption.text = item.caption
 
         binding.postVideoThumbnail.isVisible = true
@@ -148,6 +177,11 @@ class VideoViewHolder(
         Glide.with(binding.postVideoThumbnail.context)
             .load(item.thumbnailUrl)
             .into(binding.postVideoThumbnail)
+
+        binding.postCaption.setOnLongClickListener {
+            binding.postCaption.copyCaption(userName = item.userName, caption = item.caption)
+            true
+        }
 
         binding.postVideoThumbnail.setOnClickListener {
             binding.postVideoThumbnail.isVisible = false
@@ -161,13 +195,8 @@ class VideoViewHolder(
 
     private fun setupVideoPlayer(playerView: PlayerView, videoUrl: String) {
 
-        val cacheDataSourceFactory = CacheDataSource.Factory()
-            .setCache(videoCache)
-            .setUpstreamDataSourceFactory(DefaultHttpDataSource.Factory())
-            .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-
         player = ExoPlayer.Builder(playerView.context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultHttpDataSource.Factory()))
             .build()
 
         val mediaItem = MediaItem.Builder()
@@ -194,31 +223,66 @@ class VideoViewHolder(
 }
 
 fun UserInfoSectionBinding.updateUserInfoSection(item: PostModel) {
-    with(this@updateUserInfoSection) {
-        userName.text = item.userName
-        timeStamp.text = item.timeStamp
-        Glide.with(root.context)
-            .load(item.userImage)
-            .into(profilePic)
-    }
+    userName.text = item.userName
+    timeStamp.text = item.timeStamp
+    Glide.with(root.context)
+        .load(item.userImage)
+        .into(profilePic)
 }
 
-fun LikeCommentSectionBinding.updateLikeCommentSection(item: PostModel) {
-    with(this@updateLikeCommentSection) {
-        if (item.isLiked) {
-            likeTv.setCompoundDrawablesWithIntrinsicBounds(
-                ContextCompat.getDrawable(
-                    this.root.context,
-                    R.drawable.thumbs_up
-                ), null, null, null
-            )
+fun TextView.copyCaption(userName: String, caption: String) {
+    val clipBoard = ContextCompat.getSystemService(this.context, ClipboardManager::class.java)
+    val clip = ClipData.newPlainText("Feed caption", "[$userName]: $caption")
+    clipBoard?.setPrimaryClip(clip)
+    Toast.makeText(this.context, "Caption Copied", Toast.LENGTH_SHORT).show()
+}
+
+fun LikeCommentSectionBinding.updateLikeCommentSection(
+    item: PostModel,
+    isLiked: (Int, Boolean) -> Unit,
+    addNewComment: (Int, String) -> Unit,
+    onClick: () -> Unit = {}
+) {
+
+    val drawable = if (item.isLiked) {
+        ContextCompat.getDrawable(
+            this.root.context,
+            R.drawable.thumbs_up
+        )
+    } else {
+        ContextCompat.getDrawable(
+            this.root.context,
+            R.drawable.thumbs_up_empty
+        )
+    }
+    commentList.isVisible = false
+
+    likeTv.setCompoundDrawablesWithIntrinsicBounds(drawable, null, null, null)
+
+    likeTv.setOnClickListener {
+        onClick()
+        isLiked(item.id, item.isLiked.not())
+    }
+
+    commentTv.setOnClickListener {
+        if (item.commentList.isEmpty()) {
+            Toast.makeText(commentTv.context, "No Comments", Toast.LENGTH_SHORT).show()
         } else {
-            likeTv.setCompoundDrawablesWithIntrinsicBounds(
-                ContextCompat.getDrawable(
-                    this.root.context,
-                    R.drawable.thumbs_up_empty
-                ), null, null, null
-            )
+            commentList.isVisible = commentList.isVisible.not()
         }
     }
+
+    addComment.setOnClickListener {
+        if (addCommentText.text.isEmpty()) {
+            Toast.makeText(addCommentText.context, "Empty Comment", Toast.LENGTH_SHORT).show()
+        } else {
+            onClick()
+            addNewComment(item.id, addCommentText.text.toString())
+            Toast.makeText(addCommentText.context, "Comment Added", Toast.LENGTH_SHORT).show()
+            addCommentText.setText("")
+        }
+    }
+
+    commentList.text = item.commentList.joinToString("\n")
+
 }

@@ -2,4 +2,5 @@
     <string name="app_name">Feeds</string>
     <string name="like">Like</string>
     <string name="comment">Comment</string>
+    <string name="add_comment">Add Comment</string>
 </resources>

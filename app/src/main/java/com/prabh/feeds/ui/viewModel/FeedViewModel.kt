@@ -24,9 +24,27 @@ class FeedViewModel: ViewModel() {
 
     private fun getData() {
         viewModelScope.launch {
-            val data = repo.fetchFeedData()
+            val data = repo.getFeedData()
             _uiState.update {
                 UiState.Success(data)
+            }
+        }
+    }
+
+    fun updateLike(id: Int, isLiked: Boolean) {
+        viewModelScope.launch {
+            val updatedData = repo.updateLike(id, isLiked)
+            _uiState.update {
+                UiState.Success(updatedData)
+            }
+        }
+    }
+
+    fun addComment(id: Int, newComment: String) {
+        viewModelScope.launch {
+            val updatedData = repo.updateComments(id, newComment)
+            _uiState.update {
+                UiState.Success(updatedData)
             }
         }
     }

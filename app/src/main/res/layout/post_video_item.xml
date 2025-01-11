@@ -4,15 +4,15 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="10dp"
-    android:layout_marginHorizontal="10dp">
+    android:layout_marginVertical="10dp">
 
     <include
         android:id="@+id/user_info_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         layout="@layout/user_info_section"
-        android:layout_marginBottom="10dp" />
+        android:layout_marginBottom="10dp"
+        android:layout_marginHorizontal="10dp" />
 
     <TextView
         android:id="@+id/post_caption"
@@ -20,12 +20,14 @@
         android:layout_height="wrap_content"
         android:textSize="18sp"
         android:textColor="@color/black"
-        tools:text="This is the post caption." />
+        tools:text="This is the post caption."
+        android:layout_marginHorizontal="10dp" />
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="250dp"
-        android:layout_marginTop="10dp">
+        android:layout_marginTop="10dp"
+        android:layout_marginHorizontal="10dp">
 
         <androidx.media3.ui.PlayerView
             android:id="@+id/post_video"
